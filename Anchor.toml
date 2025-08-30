@@ -1,0 +1,14 @@
+[toolchain]
+anchor_version = "0.31.1"
+solana_version = "2.1.20"
+
+[features]
+seeds = false
+skip-lint = false
+
+[provider]
+cluster = "devnet"
+wallet = "/Users/visheshsachdev/.config/solana/id.json"
+
+[workspace]
+members = ["programs/luxor-stake"]
