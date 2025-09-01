@@ -3,17 +3,14 @@ use anchor_client::{Client, Cluster};
 use anyhow::{format_err, Result};
 use clap::Parser;
 use configparser::ini::Ini;
-use luxor_stake::states::{LP_LOCK_COUNTER_SEED, USER_LOCK_SEED};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    feature_set::full_inflation::mainnet::certusone::vote,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use spl_associated_token_account::get_associated_token_address_with_program_id;
+use std::rc::Rc;
 use std::str::FromStr;
-use std::{ops::Add, rc::Rc};
 
 mod instructions;
 use instructions::amm_instructions::*;
@@ -25,7 +22,7 @@ pub struct ClientConfig {
     ws_url: String,
     payer_path: String,
     admin_path: String,
-    luxor_stake_program: Pubkey,
+    luxor_swap_program: Pubkey,
 }
 
 fn load_cfg(client_config: &String) -> Result<ClientConfig> {
@@ -48,18 +45,18 @@ fn load_cfg(client_config: &String) -> Result<ClientConfig> {
         panic!("admin_path must not be empty");
     }
 
-    let luxor_stake_program_str = config.get("Global", "luxor_stake_program").unwrap();
-    if luxor_stake_program_str.is_empty() {
+    let luxor_swap_program_str = config.get("Global", "luxor_swap_program").unwrap();
+    if luxor_swap_program_str.is_empty() {
         panic!("raydium_cp_program must not be empty");
     }
-    let luxor_stake_program = Pubkey::from_str(&luxor_stake_program_str).unwrap();
+    let luxor_swap_program = Pubkey::from_str(&luxor_swap_program_str).unwrap();
 
     Ok(ClientConfig {
         http_url,
         ws_url,
         payer_path,
         admin_path,
-        luxor_stake_program,
+        luxor_swap_program,
     })
 }
 
@@ -80,17 +77,23 @@ pub enum RaydiumCpCommands {
         #[arg(long)]
         admin: Pubkey,
         #[arg(long)]
+        vote_account: Pubkey,
+        #[arg(long)]
         bonus_rate: u64,
         #[arg(long)]
         max_stake_count_to_get_bonus: u64,
         #[arg(long)]
         min_swap_amount: u64,
         #[arg(long)]
+        max_swap_amoumnt: u64,
+        #[arg(long)]
         fee_treasury_rate: u64,
         #[arg(long)]
         purchase_enabled: bool,
         #[arg(long)]
         redeem_enabled: bool,
+        #[arg(long)]
+        initial_lxr_allocation_vault: u64,
     },
     UpdateConfig {
         #[arg(long)]
@@ -123,6 +126,8 @@ pub enum RaydiumCpCommands {
     EmergencyWithdraw {
         #[arg(long)]
         param: u8,
+        #[arg(long)]
+        value: u64,
     },
 }
 
@@ -139,29 +144,35 @@ fn main() -> Result<()> {
     let url = Cluster::Custom(anchor_config.http_url, anchor_config.ws_url);
     let wallet = read_keypair_file(&pool_config.payer_path)?;
     let anchor_client = Client::new(url, Rc::new(wallet));
-    let program = anchor_client.program(pool_config.luxor_stake_program)?;
+    let program = anchor_client.program(pool_config.luxor_swap_program)?;
 
     let opts = Opts::parse();
     match opts.command {
         RaydiumCpCommands::InitialiseConfigs {
             admin,
+            vote_account,
             bonus_rate,
             max_stake_count_to_get_bonus,
             min_swap_amount,
+            max_swap_amoumnt,
             fee_treasury_rate,
             purchase_enabled,
             redeem_enabled,
+            initial_lxr_allocation_vault,
         } => {
             let mut instructions = Vec::new();
             let initialise_ix = initialise_configs_instr(
                 &pool_config,
                 admin,
+                vote_account,
                 bonus_rate,
                 max_stake_count_to_get_bonus,
                 min_swap_amount,
+                max_swap_amoumnt,
                 fee_treasury_rate,
                 purchase_enabled,
                 redeem_enabled,
+                initial_lxr_allocation_vault,
             )?;
             instructions.extend(initialise_ix);
             let signers = vec![&payer];
@@ -265,9 +276,9 @@ fn main() -> Result<()> {
             let signature = send_txn(&rpc_client, &txn, true)?;
             println!("{}", signature);
         }
-        RaydiumCpCommands::EmergencyWithdraw { param } => {
+        RaydiumCpCommands::EmergencyWithdraw { param, value } => {
             let mut instructions = Vec::new();
-            let emergency_withdraw_ix = emergency_withdraw_instr(&pool_config, param)?;
+            let emergency_withdraw_ix = emergency_withdraw_instr(&pool_config, param, value)?;
             instructions.extend(emergency_withdraw_ix);
             let signers = vec![&payer];
             let recent_hash = rpc_client.get_latest_blockhash()?;

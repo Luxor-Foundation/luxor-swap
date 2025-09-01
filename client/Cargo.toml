@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anchor-client = { version = "0.31.1" }
 anchor-lang = { version = "0.31.1" }
-luxor-stake = { path = "../programs/luxor-stake", features = [
+luxor-swap = { path = "../programs/luxor-swap", features = [
     "no-entrypoint",
     "client",
 ] }

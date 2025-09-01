@@ -91,4 +91,7 @@ pub enum ErrorCode {
 
     #[msg("Invalid parameter provided")]
     InvalidParam,
+
+    #[msg("Purchase functionality is currently disabled")]
+    PurchaseDisabled,
 }

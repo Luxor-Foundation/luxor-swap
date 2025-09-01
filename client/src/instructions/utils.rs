@@ -1,6 +1,6 @@
 use anchor_lang::AccountDeserialize;
 use anyhow::Result;
-use luxor_stake::{
+use luxor_swap::{
     luxor_pool_state,
     states::{GLOBAL_CONFIG_SEED, STAKE_INFO_SEED, USER_STAKE_INFO_SEED},
 };
@@ -136,19 +136,27 @@ pub fn get_global_config_address(program_id: &Pubkey) -> Pubkey {
 
 pub fn get_authority_address(program_id: &Pubkey) -> Pubkey {
     let (authority, _bump) =
-        Pubkey::find_program_address(&[luxor_stake::AUTH_SEED.as_bytes()], &program_id);
+        Pubkey::find_program_address(&[luxor_swap::AUTH_SEED.as_bytes()], &program_id);
     authority
 }
 
 pub fn get_luxor_vault_address(program_id: &Pubkey) -> Pubkey {
     let (luxor_vault, _bump) =
-        Pubkey::find_program_address(&[luxor_stake::LUXOR_VAULT_SEED.as_bytes()], &program_id);
+        Pubkey::find_program_address(&[luxor_swap::LUXOR_VAULT_SEED.as_bytes()], &program_id);
     luxor_vault
+}
+
+pub fn get_sol_treasury_address(program_id: &Pubkey) -> Pubkey {
+    let (sol_treasury, _bump) = Pubkey::find_program_address(
+        &[luxor_swap::SOL_TREASURY_VAULT_SEED.as_bytes()],
+        &program_id,
+    );
+    sol_treasury
 }
 
 pub fn get_luxor_reward_vault_address(program_id: &Pubkey) -> Pubkey {
     let (luxor_reward_vault, _bump) = Pubkey::find_program_address(
-        &[luxor_stake::LUXOR_REWARD_VAULT_SEED.as_bytes()],
+        &[luxor_swap::LUXOR_REWARD_VAULT_SEED.as_bytes()],
         &program_id,
     );
     luxor_reward_vault
@@ -156,7 +164,7 @@ pub fn get_luxor_reward_vault_address(program_id: &Pubkey) -> Pubkey {
 
 pub fn get_stake_pda_address(program_id: &Pubkey) -> Pubkey {
     let (stake_pda, _bump) =
-        Pubkey::find_program_address(&[luxor_stake::STAKE_ACCOUNT_SEED.as_bytes()], &program_id);
+        Pubkey::find_program_address(&[luxor_swap::STAKE_ACCOUNT_SEED.as_bytes()], &program_id);
     stake_pda
 }
 
@@ -178,7 +186,7 @@ pub fn get_raydium_vault(program_id: &Pubkey, mint: &Pubkey) -> Pubkey {
     let (vault, _bump) = Pubkey::find_program_address(
         &[
             "pool_vault".as_bytes(),
-            luxor_stake::luxor_pool_state::ID.as_ref(),
+            luxor_swap::luxor_pool_state::ID.as_ref(),
             mint.as_ref(),
         ],
         &program_id,

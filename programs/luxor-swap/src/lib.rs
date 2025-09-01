@@ -14,12 +14,12 @@ pub mod vault_and_lp_mint_auth {
 
 pub mod luxor_pool_state {
     use anchor_lang::prelude::declare_id;
-    declare_id!("H9yG7v1v3tY6m7gk3rX4h5J6v8n9PqR1s2t3u4v5w6x7");
+    declare_id!("J7qwfj5wmLNFTN7XYyv1BfQa6xkqo94pohBPPrVEavz7");
 }
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
-    declare_id!("3SwRCrTTz6gHgLkDwVC3RXGuJz8LWMj38Sj2QPnUePtn");
+    declare_id!("6qumPsEq1327yw9MS71SAmNj9NgaykYFvJQvNs7Xpkvd");
 }
 
 pub mod luxor_mint {
@@ -30,6 +30,7 @@ pub mod luxor_mint {
 pub const AUTH_SEED: &str = "stake_and_treasury_auth";
 pub const LUXOR_VAULT_SEED: &str = "luxor_vault";
 pub const LUXOR_REWARD_VAULT_SEED: &str = "luxor_reward_vault";
+pub const SOL_TREASURY_VAULT_SEED: &str = "sol_treasury_vault";
 pub const STAKE_ACCOUNT_SEED: &str = "stake";
 pub const PRECISION: u128 = 1_000_000_000;
 
@@ -42,11 +43,16 @@ pub mod utils;
 use instructions::*;
 
 #[program]
-pub mod cpmm_lp_lock {
+pub mod luxor_swap {
+
     use super::*;
 
-    pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>, param: u8) -> Result<()> {
-        instructions::emergency_withdraw(ctx, param)
+    pub fn emergency_withdraw(
+        ctx: Context<EmergencyWithdraw>,
+        param: u8,
+        value: u64,
+    ) -> Result<()> {
+        instructions::emergency_withdraw(ctx, param, value)
     }
 
     pub fn update_config(ctx: Context<UpdateConfig>, param: u8, value: u64) -> Result<()> {
@@ -80,22 +86,28 @@ pub mod cpmm_lp_lock {
     pub fn initialise_configs(
         ctx: Context<InitialiseConfigs>,
         admin: Pubkey,
+        vote_account: Pubkey,
         bonus_rate: u64,
         max_stake_count_to_get_bonus: u64,
         min_swap_amount: u64,
+        max_swap_amount: u64,
         fee_treasury_rate: u64,
         purchase_enabled: bool,
         redeem_enabled: bool,
+        initial_lxr_allocation_vault: u64,
     ) -> Result<()> {
         instructions::initialise_configs(
             ctx,
             admin,
+            vote_account,
             bonus_rate,
             max_stake_count_to_get_bonus,
             min_swap_amount,
+            max_swap_amount,
             fee_treasury_rate,
             purchase_enabled,
             redeem_enabled,
+            initial_lxr_allocation_vault,
         )
     }
 }

@@ -1,12 +1,12 @@
 [package]
-name = "luxor-stake"
+name = "luxor-swap"
 version = "0.1.0"
 description = "Anchor program for LXR buying and SOL staking"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "luxor_stake"
+name = "luxor_swap"
 
 [features]
 no-entrypoint = []

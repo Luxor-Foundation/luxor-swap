@@ -11,4 +11,4 @@ cluster = "devnet"
 wallet = "/Users/visheshsachdev/.config/solana/id.json"
 
 [workspace]
-members = ["programs/luxor-stake"]
+members = ["programs/luxor-swap"]
