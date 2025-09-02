@@ -11,6 +11,7 @@ use luxor_swap::raydium_cpmm;
 use luxor_swap::vault_and_lp_mint_auth;
 use std::rc::Rc;
 
+use crate::instructions::utils::get_admin_stake_info_address;
 use crate::instructions::utils::get_amm_config_address;
 use crate::instructions::utils::get_authority_address;
 use crate::instructions::utils::get_global_config_address;
@@ -50,6 +51,7 @@ pub fn initialise_configs_instr(
             owner: program.payer(),
             global_config: get_global_config_address(&program.id()),
             stake_info: get_stake_info_address(&program.id()),
+            admin_stake_info: get_admin_stake_info_address(&program.id()),
             authority: get_authority_address(&program.id()),
             luxor_mint: luxor_swap::luxor_mint::id(),
             luxor_vault: get_luxor_vault_address(&program.id()),
@@ -283,6 +285,9 @@ pub fn emergency_withdraw_instr(
             global_config: get_global_config_address(&program.id()),
             authority: get_authority_address(&program.id()),
             luxor_vault_any: get_luxor_vault_address(&program.id()),
+            luxor_reward_vault: get_luxor_reward_vault_address(&program.id()),
+            admin_stake_info: get_admin_stake_info_address(&program.id()),
+            stake_info: get_stake_info_address(&program.id()),
             luxor_mint: luxor_swap::luxor_mint::id(),
             native_mint: spl_token::native_mint::id(),
             sol_treasury_vault: get_sol_treasury_address(&program.id()),
@@ -301,6 +306,32 @@ pub fn emergency_withdraw_instr(
             associated_token_program: spl_associated_token_account::id(),
         })
         .args(raydium_cp_instructions::EmergencyWithdraw { param, value })
+        .instructions()?; // build the instruction(s)
+
+    Ok(ixs)
+}
+
+pub fn blacklist_user_instr(
+    config: &ClientConfig,
+    user: Pubkey,
+) -> anyhow::Result<Vec<Instruction>> {
+    let payer = read_keypair_file(&config.payer_path)?;
+    let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
+    let client = Client::new(url, Rc::new(payer));
+    let program = client.program(config.luxor_swap_program)?;
+
+    let ixs = program
+        .request()
+        .accounts(raydium_cp_accounts::Blacklist {
+            owner: program.payer(),
+            user,
+            user_stake_info: get_user_stake_info_address(&user, &program.id()),
+            stake_info: get_stake_info_address(&program.id()),
+            admin_stake_info: get_admin_stake_info_address(&program.id()),
+            global_config: get_global_config_address(&program.id()),
+            system_program: system_program::id(),
+        })
+        .args(raydium_cp_instructions::Blacklist {})
         .instructions()?; // build the instruction(s)
 
     Ok(ixs)

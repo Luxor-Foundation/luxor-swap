@@ -2,7 +2,7 @@ use anchor_lang::AccountDeserialize;
 use anyhow::Result;
 use luxor_swap::{
     luxor_pool_state,
-    states::{GLOBAL_CONFIG_SEED, STAKE_INFO_SEED, USER_STAKE_INFO_SEED},
+    states::{ADMIN_STAKE_INFO_SEED, GLOBAL_CONFIG_SEED, STAKE_INFO_SEED, USER_STAKE_INFO_SEED},
 };
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{account::Account, pubkey::Pubkey};
@@ -208,4 +208,10 @@ pub fn get_observation_state_address(program_id: &Pubkey) -> Pubkey {
         &program_id,
     );
     observation_state
+}
+
+pub fn get_admin_stake_info_address(program_id: &Pubkey) -> Pubkey {
+    let (admin_stake_info, _bump) =
+        Pubkey::find_program_address(&[ADMIN_STAKE_INFO_SEED.as_bytes()], &program_id);
+    admin_stake_info
 }

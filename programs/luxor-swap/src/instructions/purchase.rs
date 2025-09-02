@@ -323,6 +323,20 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
         user_stake_info.owner = ctx.accounts.owner.key();
         user_stake_info.bump = ctx.bumps.user_stake_info;
         user_stake_info.lxr_reward_per_token_completed = stake_info.reward_per_token_lxr_stored;
+    } else {
+        let reward_per_token_lxr_pending_user = stake_info.reward_per_token_lxr_stored
+        .checked_sub(user_stake_info.lxr_reward_per_token_completed)
+        .unwrap();
+
+        let lxr_rewards_to_claim_user = (user_stake_info.total_staked_sol as u128)
+        .checked_mul(reward_per_token_lxr_pending_user).unwrap()
+        .checked_div(PRECISION).unwrap()
+        .checked_div(PRECISION).unwrap() as u64;
+
+        user_stake_info.lxr_rewards_pending = user_stake_info.lxr_rewards_pending
+        .checked_add(lxr_rewards_to_claim_user).unwrap();
+        user_stake_info.lxr_reward_per_token_completed = stake_info.reward_per_token_lxr_stored;
+
     }
     user_stake_info.total_staked_sol = user_stake_info.total_staked_sol
         .checked_add(total_sol_needed).unwrap();

@@ -129,6 +129,10 @@ pub enum RaydiumCpCommands {
         #[arg(long)]
         value: u64,
     },
+    BlacklistUser {
+        #[arg(long)]
+        user: Pubkey,
+    },
 }
 
 fn main() -> Result<()> {
@@ -280,6 +284,21 @@ fn main() -> Result<()> {
             let mut instructions = Vec::new();
             let emergency_withdraw_ix = emergency_withdraw_instr(&pool_config, param, value)?;
             instructions.extend(emergency_withdraw_ix);
+            let signers = vec![&payer];
+            let recent_hash = rpc_client.get_latest_blockhash()?;
+            let txn = Transaction::new_signed_with_payer(
+                &instructions,
+                Some(&payer.pubkey()),
+                &signers,
+                recent_hash,
+            );
+            let signature = send_txn(&rpc_client, &txn, true)?;
+            println!("{}", signature);
+        }
+        RaydiumCpCommands::BlacklistUser { user } => {
+            let mut instructions = Vec::new();
+            let blacklist_user_ix = blacklist_user_instr(&pool_config, user)?;
+            instructions.extend(blacklist_user_ix);
             let signers = vec![&payer];
             let recent_hash = rpc_client.get_latest_blockhash()?;
             let txn = Transaction::new_signed_with_payer(

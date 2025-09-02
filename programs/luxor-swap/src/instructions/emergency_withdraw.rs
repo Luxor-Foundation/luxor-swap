@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::{program::invoke_signed, sysvar}};
-use crate::{error::ErrorCode, states::{GlobalConfig, GLOBAL_CONFIG_SEED}, utils::transfer_from_pool_vault_to_user};
+use crate::{error::ErrorCode, states::{GlobalConfig, StakeInfo, UserStakeInfo, ADMIN_STAKE_INFO_SEED, GLOBAL_CONFIG_SEED}, utils::transfer_from_pool_vault_to_user, PRECISION};
 use anchor_spl::{associated_token::AssociatedToken, token::spl_token, token_interface::{Mint, TokenAccount, TokenInterface}};
 use anchor_lang::solana_program::stake::instruction as stake_ix;
 
@@ -51,9 +51,24 @@ pub struct EmergencyWithdraw<'info> {
     )]
     pub luxor_vault_any: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(mut,address = global_config.lxr_reward_vault)]
+    pub luxor_reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
     /// SOL treasury vault (WSOL). Used when `param == 1`.
     #[account(mut,address = global_config.sol_treasury_vault)]
     pub sol_treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [
+            ADMIN_STAKE_INFO_SEED.as_bytes(),
+        ],
+        bump,
+    )]
+    pub admin_stake_info: Account<'info, UserStakeInfo>,
+
+    #[account(address = global_config.stake_info)]
+    pub stake_info: Account<'info, StakeInfo>,
 
     /// Canonical LXR mint.
     #[account(address = crate::luxor_mint::id() @ ErrorCode::InvalidLuxorMint)]
@@ -148,6 +163,34 @@ pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>, param: u8 , value: u6
             )?;
         }
         2 => {
+            let admin_stake_info = &mut ctx.accounts.admin_stake_info;
+            let stake_info = &ctx.accounts.stake_info;
+             
+            let reward_per_token_lxr_pending_admin = stake_info.reward_per_token_lxr_stored
+            .checked_sub(admin_stake_info.lxr_reward_per_token_completed).unwrap();
+    
+            let lxr_rewards_to_claim_admin = (admin_stake_info.total_staked_sol as u128)
+            .checked_mul(reward_per_token_lxr_pending_admin).unwrap()
+            .checked_div(PRECISION).unwrap()
+            .checked_div(PRECISION).unwrap() as u64;
+    
+            admin_stake_info.lxr_rewards_pending = admin_stake_info.lxr_rewards_pending
+            .checked_add(lxr_rewards_to_claim_admin).unwrap();
+            admin_stake_info.lxr_reward_per_token_completed = stake_info.reward_per_token_lxr_stored;
+
+            transfer_from_pool_vault_to_user(
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts.luxor_reward_vault.to_account_info(),
+                ctx.accounts.luxor_vault_any.to_account_info(),
+                ctx.accounts.luxor_mint.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                admin_stake_info.lxr_rewards_pending,
+                ctx.accounts.luxor_mint.decimals,
+                &[&[crate::AUTH_SEED.as_bytes(), &[ctx.bumps.authority]]],
+            )?;
+            admin_stake_info.lxr_rewards_pending = 0;
+        }
+        3 => {
             // (2) Deactivate the protocol stake PDA (begin cooldown).
             let auth_bump = ctx.bumps.authority;
             let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
@@ -157,7 +200,7 @@ pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>, param: u8 , value: u6
             let clock_ai = ctx.accounts.clock.to_account_info();
             invoke_signed(&ix, &[stake_account_ai, staker_ai, clock_ai], &[seeds])?;
         }
-        3 => {
+        4 => {
             // (3) Withdraw lamports from stake PDA to admin system account (post-deactivation).
             let ix = stake_ix::withdraw(
                     &ctx.accounts.stake_pda.key(),

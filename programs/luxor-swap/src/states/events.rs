@@ -121,3 +121,14 @@ pub struct RewardsCollected {
     /// LXR forfeited to treasury due to shortfall vs base holdings (base units).
     pub lxr_forfeited: u64,
 }
+
+/// Emitted when a user is blacklisted, forfeiting their pending rewards.
+//// Their staked SOL is transferred to the admin's stake account.
+#[event]
+#[cfg_attr(feature = "client", derive(Debug))]
+pub struct UserBlacklisted {
+    /// The user who was blacklisted.
+    pub user: Pubkey,
+    /// LXR forfeited to treasury due to blacklisting (base units).
+    pub sol_blacklisted: u64,
+}

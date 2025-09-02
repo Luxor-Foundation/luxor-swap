@@ -67,6 +67,10 @@ pub mod luxor_swap {
         instructions::redeem(ctx)
     }
 
+    pub fn blacklist(ctx: Context<Blacklist>) -> Result<()> {
+        instructions::blacklist(ctx)
+    }
+
     pub fn purchase(
         ctx: Context<Purchase>,
         lxr_to_purchase: u64,

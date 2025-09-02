@@ -70,6 +70,17 @@ pub struct InitialiseConfigs<'info> {
     )]
     pub native_mint: Box<InterfaceAccount<'info, Mint>>,
 
+    #[account(
+        init,
+        seeds = [
+            ADMIN_STAKE_INFO_SEED.as_bytes(),
+        ],
+        bump,
+        payer = owner,
+        space = UserStakeInfo::LEN
+    )]
+    pub admin_stake_info: Account<'info, UserStakeInfo>,
+
     /// Program-owned token vault for protocol treasury (LUXOR tokens).
     #[account(
         init,

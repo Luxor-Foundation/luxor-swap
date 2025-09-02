@@ -8,6 +8,7 @@ use anchor_lang::prelude::*;
 
 /// PDA seed string used to derive each user's stake info account.
 pub const USER_STAKE_INFO_SEED: &str = "user_stake_info";
+pub const ADMIN_STAKE_INFO_SEED: &str = "admin_stake_info";
 
 /// Stores staking and reward-related data for a single user.
 ///
@@ -49,6 +50,7 @@ pub struct UserStakeInfo {
 
     /// LXR rewards that were calculated but not yet claimed by the user.
     pub lxr_rewards_pending: u64,
+    pub blacklisted_sol: u64,
 }
 
 impl UserStakeInfo {
