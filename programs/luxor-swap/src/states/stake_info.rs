@@ -63,6 +63,9 @@ pub struct StakeInfo {
 
     /// Total LXR forfeited by users (sent to treasury due to under-holdings).
     pub total_lxr_forfeited: u64,
+
+    pub buyback_count: u64,
+    pub buyback_requested: bool,
 }
 
 impl StakeInfo {
@@ -73,5 +76,5 @@ impl StakeInfo {
     /// - 1: bump
     /// - 8 * 10: ten `u64` fields
     /// - 16 * 2: two `u128` fields
-    pub const LEN: usize = 8 + 1 + 8 * 10 + 16 * 2;
+    pub const LEN: usize = 8 + 1 + 8 * 11 + 16 * 2 + 1;
 }

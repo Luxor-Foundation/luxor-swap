@@ -94,4 +94,10 @@ pub enum ErrorCode {
 
     #[msg("Purchase functionality is currently disabled")]
     PurchaseDisabled,
+
+    #[msg("Buyback has already been requested")]
+    BuybackAlreadyRequested,
+
+    #[msg("No buyback has been requested")]
+    NoBuybackRequested,
 }

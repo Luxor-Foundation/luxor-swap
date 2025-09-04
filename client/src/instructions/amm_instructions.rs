@@ -20,6 +20,7 @@ use crate::instructions::utils::get_luxor_vault_address;
 use crate::instructions::utils::get_observation_state_address;
 use crate::instructions::utils::get_raydium_vault;
 use crate::instructions::utils::get_sol_treasury_address;
+use crate::instructions::utils::get_split_stake_pda_address;
 use crate::instructions::utils::get_stake_info_address;
 use crate::instructions::utils::get_stake_pda_address;
 use crate::instructions::utils::get_user_stake_info_address;
@@ -226,7 +227,7 @@ pub fn redeem_instr(config: &ClientConfig) -> anyhow::Result<Vec<Instruction>> {
     Ok(ixs)
 }
 
-pub fn buyback_instr(config: &ClientConfig) -> anyhow::Result<Vec<Instruction>> {
+pub fn buyback_instr(config: &ClientConfig, count: u64) -> anyhow::Result<Vec<Instruction>> {
     let payer = read_keypair_file(&config.payer_path)?;
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     let client = Client::new(url, Rc::new(payer));
@@ -242,6 +243,7 @@ pub fn buyback_instr(config: &ClientConfig) -> anyhow::Result<Vec<Instruction>> 
             stake_info: get_stake_info_address(&program.id()),
             system_program: system_program::id(),
             stake_pda: get_stake_pda_address(&program.id()),
+            stake_split_pda: get_split_stake_pda_address(&program.id(), count),
             pool_state: luxor_pool_state::id(),
             token_program: spl_token::id(),
             associated_token_program: spl_associated_token_account::id(),
@@ -259,6 +261,9 @@ pub fn buyback_instr(config: &ClientConfig) -> anyhow::Result<Vec<Instruction>> 
             vault_1_mint: luxor_swap::luxor_mint::id(),
             raydium_authority: vault_and_lp_mint_auth::id(),
             raydium_cpmm_program: raydium_cpmm::id(),
+            authority: get_authority_address(&program.id()),
+            stake_program: solana_sdk::stake::program::id(),
+            clock: solana_sdk::sysvar::clock::id(),
             amm_config: get_amm_config_address(&raydium_cpmm::id(), 0),
             observation_state: get_observation_state_address(&raydium_cpmm::id()),
         })

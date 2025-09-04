@@ -62,5 +62,5 @@ impl UserStakeInfo {
     /// - 32: owner pubkey
     /// - 8 * 5: five `u64` fields
     /// - 16: one `u128` field
-    pub const LEN: usize = 8 + 1 + 32 + 8 * 5 + 16;
+    pub const LEN: usize = 8 + 1 + 32 + 8 * 6 + 16;
 }

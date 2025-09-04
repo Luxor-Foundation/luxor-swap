@@ -7,7 +7,7 @@ seeds = false
 skip-lint = false
 
 [provider]
-cluster = "devnet"
+cluster = "https://mainnet.helius-rpc.com/?api-key=7293b92a-03dd-435c-b594-e754264f781a"
 wallet = "/Users/visheshsachdev/.config/solana/id.json"
 
 [workspace]

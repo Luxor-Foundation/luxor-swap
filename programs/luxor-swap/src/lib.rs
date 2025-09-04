@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("6BtsN2jo6ijrwCUnMPzXcB8G4hYpASgpHaKWQmHbubV9");
+declare_id!("2mXffWN8gUBsac5YNWaCcKt3Yfhw8DT3yqXJXymQcUnu");
 
 pub mod raydium_cpmm {
     use anchor_lang::prelude::declare_id;
@@ -19,7 +19,7 @@ pub mod luxor_pool_state {
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
-    declare_id!("6qumPsEq1327yw9MS71SAmNj9NgaykYFvJQvNs7Xpkvd");
+    declare_id!("B8VmoTgg2arRfw7qQVTYK9GohYeyMEjaCSW6jVPVBUgV");
 }
 
 pub mod luxor_mint {
@@ -32,6 +32,7 @@ pub const LUXOR_VAULT_SEED: &str = "luxor_vault";
 pub const LUXOR_REWARD_VAULT_SEED: &str = "luxor_reward_vault";
 pub const SOL_TREASURY_VAULT_SEED: &str = "sol_treasury_vault";
 pub const STAKE_ACCOUNT_SEED: &str = "stake";
+pub const STAKE_SPLIT_ACCOUNT_SEED: &str = "stake_split";
 pub const PRECISION: u128 = 1_000_000_000;
 
 pub mod curve;

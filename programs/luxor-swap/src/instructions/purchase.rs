@@ -261,6 +261,8 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
 
     // Slippage/limit check from the payer.
     require_gte!(max_sol_amount, total_sol_needed);
+    require_gte!(total_sol_needed,global_config.min_swap_amount);
+    require_gte!(max_sol_amount,total_sol_needed);
 
     // --- Realize newly accrued SOL rewards on stake PDA (if any) ---
     if ctx.accounts.stake_pda.lamports() > stake_info.last_tracked_sol_balance {

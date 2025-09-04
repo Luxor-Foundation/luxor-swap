@@ -3,6 +3,7 @@ use anyhow::Result;
 use luxor_swap::{
     luxor_pool_state,
     states::{ADMIN_STAKE_INFO_SEED, GLOBAL_CONFIG_SEED, STAKE_INFO_SEED, USER_STAKE_INFO_SEED},
+    STAKE_SPLIT_ACCOUNT_SEED,
 };
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{account::Account, pubkey::Pubkey};
@@ -214,4 +215,12 @@ pub fn get_admin_stake_info_address(program_id: &Pubkey) -> Pubkey {
     let (admin_stake_info, _bump) =
         Pubkey::find_program_address(&[ADMIN_STAKE_INFO_SEED.as_bytes()], &program_id);
     admin_stake_info
+}
+
+pub fn get_split_stake_pda_address(program_id: &Pubkey, count: u64) -> Pubkey {
+    let (split_stake_pda, _bump) = Pubkey::find_program_address(
+        &[STAKE_SPLIT_ACCOUNT_SEED.as_bytes(), &count.to_le_bytes()],
+        &program_id,
+    );
+    split_stake_pda
 }
