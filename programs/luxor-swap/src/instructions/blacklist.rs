@@ -106,7 +106,6 @@ pub fn blacklist(ctx: Context<Blacklist>) -> Result<()> {
     
     let lxr_rewards_to_claim_user = (user_stake_info.total_staked_sol as u128)
         .checked_mul(reward_per_token_lxr_pending_user).unwrap()
-        .checked_div(PRECISION).unwrap()
         .checked_div(PRECISION).unwrap() as u64;
 
     user_stake_info.lxr_rewards_pending = user_stake_info.lxr_rewards_pending
@@ -126,7 +125,6 @@ pub fn blacklist(ctx: Context<Blacklist>) -> Result<()> {
         .unwrap();
     let lxr_rewards_to_claim_admin = (admin_stake_info.total_staked_sol as u128)
         .checked_mul(reward_per_token_lxr_pending_admin).unwrap()
-        .checked_div(PRECISION).unwrap()
         .checked_div(PRECISION).unwrap() as u64;
     
     admin_stake_info.lxr_rewards_pending = admin_stake_info.lxr_rewards_pending

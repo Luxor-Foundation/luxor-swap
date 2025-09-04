@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::{program::invoke_signed, sysvar}};
+use anchor_lang::{prelude::*, solana_program::{program::invoke_signed, stake, sysvar}};
 use crate::{error::ErrorCode, states::{GlobalConfig, StakeInfo, UserStakeInfo, ADMIN_STAKE_INFO_SEED, GLOBAL_CONFIG_SEED}, utils::transfer_from_pool_vault_to_user, PRECISION};
 use anchor_spl::{associated_token::AssociatedToken, token::spl_token, token_interface::{Mint, TokenAccount, TokenInterface}};
 use anchor_lang::solana_program::stake::instruction as stake_ix;
@@ -111,6 +111,14 @@ pub struct EmergencyWithdraw<'info> {
     #[account(address = sysvar::clock::ID)]
     pub clock: UncheckedAccount<'info>,
 
+    /// CHECK: Stake program ID (CPI target).
+    #[account(address = stake::program::ID)]
+    pub stake_program: UncheckedAccount<'info>,
+
+    /// CHECK: Stake history sysvar (CPI target).
+    #[account(address = sysvar::stake_history::ID)]
+    pub stake_history: UncheckedAccount<'info>,
+
     /// Associated Token Program (for ATA creations above).
     pub associated_token_program: Program<'info, AssociatedToken>,
 
@@ -171,7 +179,6 @@ pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>, param: u8 , value: u6
     
             let lxr_rewards_to_claim_admin = (admin_stake_info.total_staked_sol as u128)
             .checked_mul(reward_per_token_lxr_pending_admin).unwrap()
-            .checked_div(PRECISION).unwrap()
             .checked_div(PRECISION).unwrap() as u64;
     
             admin_stake_info.lxr_rewards_pending = admin_stake_info.lxr_rewards_pending
@@ -215,7 +222,8 @@ pub fn emergency_withdraw(ctx: Context<EmergencyWithdraw>, param: u8 , value: u6
             let withdrawer_ai = ctx.accounts.authority.to_account_info();
             let destination_ai = ctx.accounts.owner.to_account_info();
             let clock_ai = ctx.accounts.clock.to_account_info();
-            invoke_signed(&ix, &[stake_account_ai, withdrawer_ai, destination_ai, clock_ai], &[seeds])?;
+            let stake_history_ai = ctx.accounts.stake_history.to_account_info(); 
+            invoke_signed(&ix, &[stake_account_ai, withdrawer_ai, destination_ai, clock_ai, stake_history_ai], &[seeds])?;
         }
         _ => return Err(ErrorCode::InvalidParam.into()),
     }

@@ -143,11 +143,11 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
         stake_info.total_sol_rewards_accrued = stake_info.total_sol_rewards_accrued
             .checked_add(rewards_accured).unwrap();
         stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
-        stake_info.reward_per_token_sol_stored = stake_info.reward_per_token_sol_stored.checked_add(
-            (rewards_accured as u128)
-            .checked_mul(PRECISION).unwrap()
-            .checked_div(stake_info.total_staked_sol as u128).unwrap()
-        ).unwrap();
+        // stake_info.reward_per_token_sol_stored = stake_info.reward_per_token_sol_stored.checked_add(
+        //     (rewards_accured as u128)
+        //     .checked_mul(PRECISION).unwrap()
+        //     .checked_div(stake_info.total_staked_sol as u128).unwrap()
+        // ).unwrap();
     }
 
     // --- Transfer SOL from admin to the stake PDA (fund new stake) ---
@@ -204,7 +204,6 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
 
         let lxr_rewards_to_claim_user = (user_stake_info.total_staked_sol as u128)
         .checked_mul(reward_per_token_lxr_pending_user).unwrap()
-        .checked_div(PRECISION).unwrap()
         .checked_div(PRECISION).unwrap() as u64;
 
         user_stake_info.lxr_rewards_pending = user_stake_info.lxr_rewards_pending

@@ -307,6 +307,8 @@ pub fn emergency_withdraw_instr(
             ),
             stake_pda: get_stake_pda_address(&program.id()),
             clock: solana_sdk::sysvar::clock::id(),
+            stake_program: solana_sdk::stake::program::id(),
+            stake_history: solana_sdk::sysvar::stake_history::id(),
             token_program: spl_token::id(),
             system_program: system_program::id(),
             associated_token_program: spl_associated_token_account::id(),

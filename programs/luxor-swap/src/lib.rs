@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("98Fwvu7UKKZimouE25RV9AGvyhFwx2agkv88F6Up7A9o");
+declare_id!("AJ1PyUMst8JZFXe5ExGVhiAvxb2AU38iXF3nWjpkqhys");
 
 pub mod raydium_cpmm {
     use anchor_lang::prelude::declare_id;

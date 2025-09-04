@@ -236,9 +236,6 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
      
         let owner_wsol = ctx.accounts.token_0_account.to_account_info();
         let stake_history_ai = ctx.accounts.stake_history.to_account_info();  
-
-       
-
         let sol_withdrawan = ctx.accounts.stake_split_pda.lamports().checked_sub(min_rent).unwrap();   
 
         let ix = stake_ix::withdraw(
@@ -334,7 +331,7 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
             .unwrap();
         stake_info.total_sol_used_for_buyback = stake_info
             .total_sol_used_for_buyback
-            .checked_add(actual_amount_in)
+            .checked_add(sol_withdrawan)
             .unwrap();
     
         stake_info.last_buyback_timestamp = block_timestamp;
@@ -488,14 +485,14 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 .checked_add(rewards_accured)
                 .unwrap();
             stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
-            stake_info.reward_per_token_sol_stored = stake_info
-                .reward_per_token_sol_stored
-                .checked_add(
-                       (rewards_accured as u128)
-                        .checked_mul(PRECISION)
-                        .unwrap()
-                        .checked_div(stake_info.total_staked_sol as u128)
-                        .unwrap()).unwrap();
+            // stake_info.reward_per_token_sol_stored = stake_info
+            //     .reward_per_token_sol_stored
+            //     .checked_add(
+            //            (rewards_accured as u128)
+            //             .checked_mul(PRECISION)
+            //             .unwrap()
+            //             .checked_div(stake_info.total_staked_sol as u128)
+            //             .unwrap()).unwrap();
         }
 
         // --- Available rewards (SOL) to use for buyback ---

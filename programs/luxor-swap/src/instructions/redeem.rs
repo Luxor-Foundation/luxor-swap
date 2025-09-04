@@ -36,6 +36,7 @@ pub struct Redeem<'info> {
 
     /// Per-user staking record (derived by USER_STAKE_INFO_SEED + owner).
     #[account(
+        mut,
         seeds = [
             USER_STAKE_INFO_SEED.as_bytes(), 
             owner.key().as_ref()
