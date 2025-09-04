@@ -93,6 +93,12 @@ pub fn blacklist(ctx: Context<Blacklist>) -> Result<()> {
     let admin_stake_info = &mut ctx.accounts.admin_stake_info;
     let stake_info = &ctx.accounts.stake_info;
 
+    if admin_stake_info.owner == Pubkey::default() {
+       admin_stake_info.owner = ctx.accounts.owner.key();
+       admin_stake_info.bump = ctx.bumps.admin_stake_info;
+       admin_stake_info.lxr_reward_per_token_completed = stake_info.reward_per_token_lxr_stored;
+    }
+
     // --- 1. Compute user's pending rewards and mark as forfeited ---
     let reward_per_token_lxr_pending_user = stake_info.reward_per_token_lxr_stored
         .checked_sub(user_stake_info.lxr_reward_per_token_completed)

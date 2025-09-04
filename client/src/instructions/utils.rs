@@ -14,7 +14,7 @@ use spl_token_2022::{
     },
     state::Mint,
 };
-use std::ops::Mul;
+use std::{ops::Mul, str::FromStr};
 
 pub fn deserialize_anchor_account<T: AccountDeserialize>(account: &Account) -> Result<T> {
     let mut data: &[u8] = &account.data;
@@ -196,11 +196,7 @@ pub fn get_raydium_vault(program_id: &Pubkey, mint: &Pubkey) -> Pubkey {
 }
 
 pub fn get_amm_config_address(program_id: &Pubkey, index: u8) -> Pubkey {
-    let (amm_config, _bump) = Pubkey::find_program_address(
-        &["amm_config".as_bytes(), &index.to_be_bytes()],
-        &program_id,
-    );
-    amm_config
+    Pubkey::from_str("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2").unwrap()
 }
 
 pub fn get_observation_state_address(program_id: &Pubkey) -> Pubkey {

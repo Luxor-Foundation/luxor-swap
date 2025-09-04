@@ -264,6 +264,7 @@ pub fn buyback_instr(config: &ClientConfig, count: u64) -> anyhow::Result<Vec<In
             authority: get_authority_address(&program.id()),
             stake_program: solana_sdk::stake::program::id(),
             clock: solana_sdk::sysvar::clock::id(),
+            stake_history: solana_sdk::sysvar::stake_history::id(),
             amm_config: get_amm_config_address(&raydium_cpmm::id(), 0),
             observation_state: get_observation_state_address(&raydium_cpmm::id()),
         })

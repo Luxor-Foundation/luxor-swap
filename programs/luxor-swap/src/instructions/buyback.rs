@@ -150,7 +150,7 @@ pub struct Buyback<'info> {
     /// Raydium pool state (pricing & parameters source).
     ///
     /// CHECK: Address pinned in code; deserialized ad-hoc.
-    #[account(address = crate::luxor_pool_state::id())]
+    #[account(mut,address = crate::luxor_pool_state::id())]
     pub pool_state: UncheckedAccount<'info>,
 
     /// Raydium vault / LP mint authority PDA for the pool (fixed).
@@ -167,6 +167,7 @@ pub struct Buyback<'info> {
     /// Raydium observation state (TWAP / oracle buffers, etc.).
     ///
     /// CHECK: Passed through to Raydium CPI.
+    #[account(mut)]
     pub observation_state: UncheckedAccount<'info>,
 
     /// CHECK: Raydium CPMM program ID (CPI target).
@@ -180,6 +181,10 @@ pub struct Buyback<'info> {
     /// CHECK: Clock sysvar (CPI target).
     #[account(address = sysvar::clock::ID)]
     pub clock: UncheckedAccount<'info>,
+
+    /// CHECK: Stake history sysvar (CPI target).
+    #[account(address = sysvar::stake_history::ID)]
+    pub stake_history: UncheckedAccount<'info>,
 
     /// SPL Token program (used both for WSOL sync and token transfers).
     pub token_program: Program<'info, Token>,
@@ -214,6 +219,13 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
     let stake_info = &mut ctx.accounts.stake_info;
     let stake_split_pda = &ctx.accounts.stake_split_pda;
     let block_timestamp = solana_program::clock::Clock::get()?.unix_timestamp as u64;
+    let space = size_of::<StakeStateV2>();
+    let min_rent = Rent::get()?.minimum_balance(space);
+    require!(min_rent > 0, ErrorCode::InsufficientRent); 
+
+    let authority_ai = ctx.accounts.authority.to_account_info();
+    let clock_ai = ctx.accounts.clock.to_account_info();   
+    
     if stake_info.buyback_requested {
         require_keys_eq!(*stake_split_pda.owner, ctx.accounts.stake_program.key());
         require!(stake_info.buyback_requested, ErrorCode::NoBuybackRequested);
@@ -221,14 +233,11 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
         let recipient_ai = ctx.accounts.owner.to_account_info();
         let system_program = ctx.accounts.system_program.to_account_info();
         let token_program = ctx.accounts.token_program.to_account_info();
-        let authority_ai = ctx.accounts.authority.to_account_info();
-        let clock_ai = ctx.accounts.clock.to_account_info();
+     
         let owner_wsol = ctx.accounts.token_0_account.to_account_info();
-        let owner_ai = ctx.accounts.owner.to_account_info();
+        let stake_history_ai = ctx.accounts.stake_history.to_account_info();  
 
-        let space = size_of::<StakeStateV2>();
-        let min_rent = Rent::get()?.minimum_balance(space);
-        require!(min_rent > 0, ErrorCode::InsufficientRent);    
+       
 
         let sol_withdrawan = ctx.accounts.stake_split_pda.lamports().checked_sub(min_rent).unwrap();   
 
@@ -242,7 +251,7 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
 
         let auth_bump = ctx.bumps.authority;
         let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
-        invoke_signed(&ix, &[stake_account, authority_ai, recipient_ai, clock_ai], &[seeds])?;
+        invoke_signed(&ix, &[stake_account, authority_ai, recipient_ai.clone(), clock_ai , stake_history_ai], &[seeds])?;
 
         let ix = transfer(
             &ctx.accounts.owner.key(),
@@ -250,7 +259,7 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
             sol_withdrawan,
         );
 
-        invoke(&ix, &[owner_ai, owner_wsol.clone(), system_program])?;
+        invoke(&ix, &[recipient_ai, owner_wsol.clone(), system_program])?;
 
         // Convert the lamports just transferred into WSOL token balance.
         let sync_ix = sync_native(&spl_token::id(), &ctx.accounts.token_0_account.key())?;
@@ -446,12 +455,6 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
         let stake_ai = ctx.accounts.stake_pda.to_account_info();
         let stake_pda_ai = ctx.accounts.stake_split_pda.to_account_info();
         let system_program_ai = ctx.accounts.system_program.to_account_info();
-        let authority = ctx.accounts.authority.to_account_info();  
-        let clock_ai = ctx.accounts.clock.to_account_info();  
-        // Compute rent-exempt minimum lamports for StakeStateV2.
-        let space = size_of::<StakeStateV2>();
-        let min_rent = Rent::get()?.minimum_balance(space);
-        require!(min_rent > 0, ErrorCode::InsufficientRent);    
 
         // Derive seeds for stake account PDA.
         let bump = ctx.bumps.stake_split_pda;
@@ -502,16 +505,16 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
 
         let ix = &stake_ix::split(
             &stake_ai.key(),            // source stake
-            &authority.key(),            // stake authority PDA
+            &authority_ai.key(),            // stake authority PDA
             reward_available_to_buyback,     // rewards you computed
             &stake_pda_ai.key(),            // destination stake account (rent-exempt, stake-owned)
         )[2];
         let auth_bump = ctx.bumps.authority;
         let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
-        invoke_signed(ix, &[stake_ai, stake_pda_ai.clone(), authority.clone()], &[seeds])?;     
+        invoke_signed(ix, &[stake_ai, stake_pda_ai.clone(), authority_ai.clone()], &[seeds])?;     
 
-        let ix = stake_ix::deactivate_stake(&stake_pda_ai.key(), &authority.key());
-        invoke_signed(&ix, &[stake_pda_ai, clock_ai, authority], &[seeds])?;
+        let ix = stake_ix::deactivate_stake(&stake_pda_ai.key(), &authority_ai.key());
+        invoke_signed(&ix, &[stake_pda_ai, clock_ai, authority_ai], &[seeds])?;
 
         stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
         stake_info.buyback_requested = true;

@@ -117,7 +117,6 @@ pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
     // --- 2) Base rewards = stake * delta_index, scaled down by PRECISION^2 ---
     let mut lxr_rewards_to_claim = (user_stake_info.total_staked_sol as u128)
         .checked_mul(reward_per_token_lxr_pending).unwrap()
-        .checked_div(PRECISION).unwrap()
         .checked_div(PRECISION).unwrap() as u64;
     require!(lxr_rewards_to_claim > 0, ErrorCode::NoRewardsToClaim);
 
