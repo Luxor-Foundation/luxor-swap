@@ -31,6 +31,7 @@ pub struct Redeem<'info> {
     #[account(
         seeds = [GLOBAL_CONFIG_SEED.as_bytes()],
         bump,
+        constraint = global_config.redeem_enabled @ ErrorCode::PurchaseDisabled,
     )]
     pub global_config: Account<'info, GlobalConfig>,
 

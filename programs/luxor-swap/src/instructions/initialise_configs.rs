@@ -232,10 +232,13 @@ pub fn initialise_configs(
 
     invoke_signed(
         &create_ix,
-        &[payer.clone(), stake_pda_ai.clone(), system_program_ai],
+        &[
+            payer.clone(),
+            stake_pda_ai.clone(),
+            system_program_ai.clone(),
+        ],
         &[stake_seeds],
     )?;
-
     // 2b) Initialize Stake account with authority PDA as both staker & withdrawer.
     let authorized = Authorized {
         staker: ctx.accounts.authority.key(),

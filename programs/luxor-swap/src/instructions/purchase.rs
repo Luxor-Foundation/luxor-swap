@@ -2,11 +2,12 @@ use crate::curve::{CurveCalculator, FEE_RATE_DENOMINATOR_VALUE};
 use crate::error::ErrorCode;
 use crate::utils::transfer_from_pool_vault_to_user;
 use crate::{states::*, PRECISION};
+use anchor_lang::solana_program::stake::state::StakeStateV2;
 use anchor_lang::{prelude::*, solana_program};
 use anchor_lang::solana_program::program::{invoke, invoke_signed};
 use anchor_lang::solana_program::stake::instruction as stake_ix;
 use anchor_lang::solana_program::system_instruction::transfer;
-use anchor_lang::solana_program::{stake, sysvar};
+use anchor_lang::solana_program::{stake};
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
@@ -109,14 +110,12 @@ pub struct Purchase<'info> {
     /// Clock sysvar required by `delegate_stake`.
     ///
     /// CHECK: Program ID only.
-    #[account(address = sysvar::clock::ID)]
-    pub clock: UncheckedAccount<'info>,
+    pub clock:  Sysvar<'info, Clock>,
 
     /// Stake history sysvar required by `delegate_stake`.
     ///
     /// CHECK: Program ID only.
-    #[account(address = sysvar::stake_history::ID)]
-    pub stake_history: UncheckedAccount<'info>,
+    pub stake_history: Sysvar<'info, StakeHistory>,
 
     /// Stake config account required by `delegate_stake` (fixed program address).
     ///
@@ -177,6 +176,26 @@ pub struct Purchase<'info> {
 /// - `require_*` guards for invariants, slippage (`max_sol_amount`), and pool addresses.
 pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u64) -> Result<()> {
     require_gt!(lxr_to_purchase, 0);
+    let stake_pda = &ctx.accounts.stake_pda;
+    let stake_pda_state = StakeStateV2::try_from_slice(&stake_pda.data.borrow()[..])?;
+    let clock = &*ctx.accounts.clock;               
+    let stake_history = &*ctx.accounts.stake_history;
+    let mut to_delegate = true;
+    match stake_pda_state {
+        StakeStateV2::Stake(_,stake , _) => {
+            let status = stake.delegation.stake_activating_and_deactivating(clock.epoch, stake_history, None);
+            msg!("status {:#?}",status);
+            if status.effective > 0 {
+               to_delegate = false;
+            }
+
+        }
+        StakeStateV2::Initialized(_) => {
+          msg!("Stake account is in Initialized state, using it for delegation");
+        }
+        _ => {}
+    }
+
     
     // --- Load and validate pool state/vaults used for pricing ---
     let pool_state_info = &ctx.accounts.pool_state;
@@ -245,7 +264,7 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     let global_config = &ctx.accounts.global_config;
 
     // --- Bonus / post-bonus pricing adjustments ---
-    if stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
+    if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
        total_sol_needed = total_sol_needed
         .checked_sub(
             total_sol_needed
@@ -271,11 +290,6 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
         stake_info.total_sol_rewards_accrued = stake_info.total_sol_rewards_accrued
             .checked_add(rewards_accured).unwrap();
         stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
-        // stake_info.reward_per_token_sol_stored = stake_info.reward_per_token_sol_stored.checked_add(
-        //     (rewards_accured as u128)
-        //     .checked_mul(PRECISION).unwrap()
-        //     .checked_div(stake_info.total_staked_sol as u128).unwrap()
-        // ).unwrap();
     }
 
     // --- Transfer SOL from user to stake PDA (fund stake) ---
@@ -293,29 +307,30 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     let vote_key  = ctx.accounts.vote_account.key();
     let auth_key  = ctx.accounts.authority.key();
 
-    // Build CPI ix to Stake program: delegate stake.
-    let ix = stake_ix::delegate_stake(&stake_key, &auth_key, &vote_key);
 
-    let account_infos = &[
-        ctx.accounts.stake_pda.to_account_info(),
-        ctx.accounts.vote_account.to_account_info(),
-        ctx.accounts.clock.to_account_info(),
-        ctx.accounts.stake_history.to_account_info(),
-        ctx.accounts.stake_config.to_account_info(),
-        ctx.accounts.authority.to_account_info(),
-    ];
+    if to_delegate {
+        // Build CPI ix to Stake program: delegate stake.
+        let ix = stake_ix::delegate_stake(&stake_key, &auth_key, &vote_key);
 
-    // PDA seeds for authority (PDA acts as signer).
-    let auth_bump = ctx.bumps.authority;
-    let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
+        let account_infos = &[
+            ctx.accounts.stake_pda.to_account_info(),
+            ctx.accounts.vote_account.to_account_info(),
+            ctx.accounts.clock.to_account_info(),
+            ctx.accounts.stake_history.to_account_info(),
+            ctx.accounts.stake_config.to_account_info(),
+            ctx.accounts.authority.to_account_info(),
+        ];
 
-    invoke_signed(&ix, account_infos, &[seeds])?;
+        // PDA seeds for authority (PDA acts as signer).
+        let auth_bump = ctx.bumps.authority;
+        let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
+
+        invoke_signed(&ix, account_infos, &[seeds])?;
+    }
 
     // --- Global stake info updates ---
     stake_info.total_staked_sol = stake_info.total_staked_sol
         .checked_add(total_sol_needed).unwrap();
-    stake_info.total_stake_count = stake_info.total_stake_count
-        .checked_add(1).unwrap();
     stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
     let block_timestamp = solana_program::clock::Clock::get()?.unix_timestamp as u64;
     stake_info.last_update_timestamp = block_timestamp;
@@ -325,6 +340,8 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
         user_stake_info.owner = ctx.accounts.owner.key();
         user_stake_info.bump = ctx.bumps.user_stake_info;
         user_stake_info.lxr_reward_per_token_completed = stake_info.reward_per_token_lxr_stored;
+        stake_info.total_stake_count = stake_info.total_stake_count
+        .checked_add(1).unwrap();
     } else {
         let reward_per_token_lxr_pending_user = stake_info.reward_per_token_lxr_stored
         .checked_sub(user_stake_info.lxr_reward_per_token_completed)

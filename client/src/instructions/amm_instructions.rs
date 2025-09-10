@@ -227,7 +227,11 @@ pub fn redeem_instr(config: &ClientConfig) -> anyhow::Result<Vec<Instruction>> {
     Ok(ixs)
 }
 
-pub fn buyback_instr(config: &ClientConfig, count: u64) -> anyhow::Result<Vec<Instruction>> {
+pub fn buyback_instr(
+    config: &ClientConfig,
+    count: u64,
+    vote_account: Pubkey,
+) -> anyhow::Result<Vec<Instruction>> {
     let payer = read_keypair_file(&config.payer_path)?;
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     let client = Client::new(url, Rc::new(payer));
@@ -264,6 +268,8 @@ pub fn buyback_instr(config: &ClientConfig, count: u64) -> anyhow::Result<Vec<In
             authority: get_authority_address(&program.id()),
             stake_program: solana_sdk::stake::program::id(),
             clock: solana_sdk::sysvar::clock::id(),
+            vote_account,
+            stake_config: solana_sdk::stake::config::id(),
             stake_history: solana_sdk::sysvar::stake_history::id(),
             amm_config: get_amm_config_address(&raydium_cpmm::id(), 0),
             observation_state: get_observation_state_address(&raydium_cpmm::id()),

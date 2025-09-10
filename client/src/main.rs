@@ -125,6 +125,8 @@ pub enum RaydiumCpCommands {
     Buyback {
         #[arg(long)]
         count: u64,
+        #[arg(long)]
+        vote_account: Pubkey,
     },
     EmergencyWithdraw {
         #[arg(long)]
@@ -268,9 +270,9 @@ fn main() -> Result<()> {
             let signature = send_txn(&rpc_client, &txn, true)?;
             println!("{}", signature);
         }
-        RaydiumCpCommands::Buyback { count } => {
+        RaydiumCpCommands::Buyback { count , vote_account } => {
             let mut instructions = Vec::new();
-            let buyback_ix = buyback_instr(&pool_config, count)?;
+            let buyback_ix = buyback_instr(&pool_config, count , vote_account)?;
             instructions.extend(buyback_ix);
             let signers = vec![&payer];
             let recent_hash = rpc_client.get_latest_blockhash()?;

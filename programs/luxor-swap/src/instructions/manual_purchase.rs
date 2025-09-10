@@ -1,9 +1,10 @@
 use crate::{states::*, PRECISION};
+use anchor_lang::solana_program::stake::state::StakeStateV2;
 use anchor_lang::{prelude::*, solana_program};
 use anchor_lang::solana_program::program::{invoke, invoke_signed};
 use anchor_lang::solana_program::stake::instruction as stake_ix;
 use anchor_lang::solana_program::system_instruction::transfer;
-use anchor_lang::solana_program::{stake, sysvar};
+use anchor_lang::solana_program::{stake};
 use crate::error::ErrorCode;
 
 /// Admin-only path to record a purchase for a given `user` by directly
@@ -94,14 +95,12 @@ pub struct ManualPurchase<'info> {
     /// Clock sysvar required by `delegate_stake`.
     ///
     /// CHECK: Program ID only.
-    #[account(address = sysvar::clock::ID)]
-    pub clock: UncheckedAccount<'info>,
+    pub clock:  Sysvar<'info, Clock>,
 
     /// Stake history sysvar required by `delegate_stake`.
     ///
     /// CHECK: Program ID only.
-    #[account(address = sysvar::stake_history::ID)]
-    pub stake_history: UncheckedAccount<'info>,
+    pub stake_history: Sysvar<'info, StakeHistory>,
 
     /// Stake config account (fixed program address) required by `delegate_stake`.
     ///
@@ -136,6 +135,27 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
     let stake_info = &mut ctx.accounts.stake_info;
     let user_stake_info = &mut ctx.accounts.user_stake_info;
 
+    let stake_pda = &ctx.accounts.stake_pda;
+    let stake_pda_state = StakeStateV2::try_from_slice(&stake_pda.data.borrow()[..])?;
+    let clock = &*ctx.accounts.clock;               
+    let stake_history = &*ctx.accounts.stake_history;
+    let mut to_delegate = true;
+    match stake_pda_state {
+        StakeStateV2::Stake(_,stake , _) => {
+            let status = stake.delegation.stake_activating_and_deactivating(clock.epoch, stake_history, None);
+            msg!("status {:#?}",status);
+            if status.effective > 0 {
+               to_delegate = false;
+            }
+
+        }
+        StakeStateV2::Initialized(_) => {
+          msg!("Stake account is in Initialized state, using it for delegation");
+        }
+        _ => {}
+    }
+
+
     // --- Accrue any newly observed SOL rewards on the stake PDA ---
     if ctx.accounts.stake_pda.lamports() > stake_info.last_tracked_sol_balance {
         let rewards_accured = ctx.accounts.stake_pda.lamports()
@@ -143,11 +163,6 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
         stake_info.total_sol_rewards_accrued = stake_info.total_sol_rewards_accrued
             .checked_add(rewards_accured).unwrap();
         stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
-        // stake_info.reward_per_token_sol_stored = stake_info.reward_per_token_sol_stored.checked_add(
-        //     (rewards_accured as u128)
-        //     .checked_mul(PRECISION).unwrap()
-        //     .checked_div(stake_info.total_staked_sol as u128).unwrap()
-        // ).unwrap();
     }
 
     // --- Transfer SOL from admin to the stake PDA (fund new stake) ---
@@ -165,29 +180,31 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
     let vote_key  = ctx.accounts.vote_account.key();
     let auth_key  = ctx.accounts.authority.key();
 
-    // Build CPI instruction to Stake program.
-    let ix = stake_ix::delegate_stake(&stake_key, &auth_key, &vote_key);
+    if to_delegate {
+        // Build CPI instruction to Stake program.
+        let ix = stake_ix::delegate_stake(&stake_key, &auth_key, &vote_key);
 
-    let account_infos = &[
-        ctx.accounts.stake_pda.to_account_info(),
-        ctx.accounts.vote_account.to_account_info(),
-        ctx.accounts.clock.to_account_info(),
-        ctx.accounts.stake_history.to_account_info(),
-        ctx.accounts.stake_config.to_account_info(),
-        ctx.accounts.authority.to_account_info(),
-    ];
+        let account_infos = &[
+            ctx.accounts.stake_pda.to_account_info(),
+            ctx.accounts.vote_account.to_account_info(),
+            ctx.accounts.clock.to_account_info(),
+            ctx.accounts.stake_history.to_account_info(),
+            ctx.accounts.stake_config.to_account_info(),
+            ctx.accounts.authority.to_account_info(),
+        ];
 
-    // PDA signer seeds for `authority`.
-    let auth_bump = ctx.bumps.authority;
-    let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
+        // PDA signer seeds for `authority`.
+        let auth_bump = ctx.bumps.authority;
+        let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
 
-    invoke_signed(&ix, account_infos, &[seeds])?;
+        invoke_signed(&ix, account_infos, &[seeds])?;
+    }
+
+   
 
     // --- Global stake info updates ---
     stake_info.total_staked_sol = stake_info.total_staked_sol
         .checked_add(sol_spent).unwrap();
-    stake_info.total_stake_count = stake_info.total_stake_count
-        .checked_add(1).unwrap();
     stake_info.last_tracked_sol_balance = ctx.accounts.stake_pda.lamports();
     let block_timestamp = solana_program::clock::Clock::get()?.unix_timestamp as u64;
     stake_info.last_update_timestamp = block_timestamp;
