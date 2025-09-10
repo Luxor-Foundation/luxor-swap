@@ -3,6 +3,7 @@ use crate::curve::FEE_RATE_DENOMINATOR_VALUE;
 use crate::error::ErrorCode;
 use crate::states::*;
 use crate::utils::transfer_from_user_to_pool_vault;
+use crate::AUTH_SEED;
 use crate::PRECISION;
 use crate::STAKE_ACCOUNT_SEED;
 use crate::STAKE_SPLIT_ACCOUNT_SEED;
@@ -507,8 +508,8 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
 
         msg!("Available rewards for buyback: {}", reward_available_to_buyback);
 
-        let bump  = ctx.bumps.stake_pda;
-        let stake_seeds: &[&[u8]] = &[STAKE_ACCOUNT_SEED.as_bytes(), &[bump]];
+        let bump  = ctx.bumps.authority;
+        let stake_seeds: &[&[u8]] = &[AUTH_SEED.as_bytes(), &[bump]];
 
         let ix = stake_ix::deactivate_stake(&stake_ai.key(), &authority_ai.key());
         invoke_signed(&ix, &[stake_ai.clone(), clock_ai, authority_ai.clone()], &[stake_seeds])?;
