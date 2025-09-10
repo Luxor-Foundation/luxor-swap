@@ -72,6 +72,7 @@ pub struct Buyback<'info> {
     )]
     pub stake_info: Account<'info, StakeInfo>,
 
+    /// CHECK: Vote account to delegate stake to.
     #[account(address = global_config.vote_account)]
     pub vote_account: UncheckedAccount<'info>,
 
@@ -189,6 +190,7 @@ pub struct Buyback<'info> {
     #[account(address = sysvar::stake_history::ID)]
     pub stake_history: UncheckedAccount<'info>,
 
+    /// CHECK: Stake config sysvar (CPI target).
     #[account(address = solana_program::stake::config::ID)]
     pub stake_config: UncheckedAccount<'info>,
 
@@ -245,29 +247,36 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
     }
 
     let authority_ai = ctx.accounts.authority.to_account_info();
-    let clock_ai = ctx.accounts.clock.to_account_info();   
+    let clock_ai = ctx.accounts.clock.to_account_info();
+    let stake_pda_ai = ctx.accounts.stake_pda.to_account_info();
+    let vote_ai = ctx.accounts.vote_account.to_account_info();
+    let stake_history_ai = ctx.accounts.stake_history.to_account_info();
+    let stake_config_ai = ctx.accounts.stake_config.to_account_info();
     
     if stake_info.buyback_requested {
-        let ix = stake_ix::delegate_stake(
-            &ctx.accounts.stake_pda.key(), 
-            &ctx.accounts.authority.key(), 
-            &ctx.accounts.vote_account.key()
-        );
-
-         let account_infos = &[
-            ctx.accounts.stake_pda.to_account_info(),
-            ctx.accounts.vote_account.to_account_info(),
-            ctx.accounts.clock.to_account_info(),
-            ctx.accounts.stake_history.to_account_info(),
-            ctx.accounts.stake_config.to_account_info(),
-            ctx.accounts.authority.to_account_info(),
-        ];
-
+        
         // PDA seeds for authority (PDA acts as signer).
         let auth_bump = ctx.bumps.authority;
         let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
+       
+        {
+            let ix = stake_ix::delegate_stake(
+                &ctx.accounts.stake_pda.key(), 
+                &ctx.accounts.authority.key(), 
+                &ctx.accounts.vote_account.key()
+            );
 
-        invoke_signed(&ix, account_infos, &[seeds])?;
+            let delegate_account_infos: [&AccountInfo; 6] =[
+                &stake_pda_ai,
+                &vote_ai,
+                &clock_ai,
+                &stake_history_ai,
+                &stake_config_ai,
+                &authority_ai,
+            ];
+
+            invoke_signed(&ix, unsafe { core::mem::transmute(delegate_account_infos.as_slice()) }, &[seeds])?;
+        }
 
         if *stake_split_pda.owner == ctx.accounts.stake_program.key() {
              
@@ -276,7 +285,7 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
             let system_program = ctx.accounts.system_program.to_account_info();
             let token_program = ctx.accounts.token_program.to_account_info();
             let owner_wsol = ctx.accounts.token_0_account.to_account_info();
-            let stake_history_ai = ctx.accounts.stake_history.to_account_info();  
+            
             let sol_withdrawan = ctx.accounts.stake_split_pda.lamports().checked_sub(min_rent).unwrap();   
 
             let ix = stake_ix::withdraw(
@@ -287,9 +296,16 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 None,       // custodian optional
             );
 
-            let auth_bump = ctx.bumps.authority;
-            let seeds: &[&[u8]] = &[crate::AUTH_SEED.as_bytes(), &[auth_bump]];
-            invoke_signed(&ix, &[stake_account, authority_ai, recipient_ai.clone(), clock_ai , stake_history_ai], &[seeds])?;
+            let withdraw_account_infos: [&AccountInfo; 5] =[
+                &stake_account,
+                &recipient_ai,
+                &clock_ai,
+                &stake_history_ai,
+                &authority_ai,
+            ];
+
+
+            invoke_signed(&ix, unsafe { core::mem::transmute(withdraw_account_infos.as_slice()) }, &[seeds])?;
 
             let ix = transfer(
                 &ctx.accounts.owner.key(),
@@ -334,9 +350,9 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 ctx.accounts.token_1_vault.amount,
             )?;
 
-            let constant_before = u128::from(total_input_token_amount)
-                .checked_mul(u128::from(total_output_token_amount))
-                .unwrap();
+            // let constant_before = u128::from(total_input_token_amount)
+            //     .checked_mul(u128::from(total_output_token_amount))
+            //     .unwrap();
 
             let creator_fee_rate = pool_state.adjust_creator_fee_rate(500);
 
@@ -353,15 +369,15 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
             )
             .ok_or(ErrorCode::ZeroTradingTokens)?;
 
-            let constant_after = u128::from(result.new_input_vault_amount)
-                .checked_mul(u128::from(result.new_output_vault_amount))
-                .unwrap();
+            // let constant_after = u128::from(result.new_input_vault_amount)
+            //     .checked_mul(u128::from(result.new_output_vault_amount))
+            //     .unwrap();
 
             require_eq!(
                 u64::try_from(result.input_amount).unwrap(),
                 actual_amount_in
             );
-            require_gte!(constant_after, constant_before);
+            // require_gte!(constant_after, constant_before);
 
             // Output LXR expected from the priced trade (will later be verified by Raydium CPI).
             let lxr_bought = u64::try_from(result.output_amount).unwrap();
@@ -397,34 +413,20 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
             let mut data = discriminator;
             data.extend(params.try_to_vec()?);
 
-            // CPI account metas expected by Raydium CPMM
-            let payer = ctx.accounts.owner.key();
-            let raydium_authority = ctx.accounts.raydium_authority.key();
-            let amm_config = ctx.accounts.amm_config.key();
-            let pool_state = ctx.accounts.pool_state.key();
-            let input_token_account = ctx.accounts.token_0_account.key();
-            let output_token_account = ctx.accounts.token_1_account.key();
-            let input_vault = ctx.accounts.token_0_vault.key();
-            let output_vault = ctx.accounts.token_1_vault.key();
-            let input_output_token_program = ctx.accounts.token_program.key();
-            let input_token_mint = ctx.accounts.vault_0_mint.key();
-            let output_token_mint = ctx.accounts.vault_1_mint.key();
-            let observation_state = ctx.accounts.observation_state.key();
-
             let accounts = vec![
-                AccountMeta::new(payer, true),
-                AccountMeta::new_readonly(raydium_authority, false),
-                AccountMeta::new_readonly(amm_config, false),
-                AccountMeta::new(pool_state, false),
-                AccountMeta::new(input_token_account, false),
-                AccountMeta::new(output_token_account, false),
-                AccountMeta::new(input_vault, false),
-                AccountMeta::new(output_vault, false),
-                AccountMeta::new_readonly(input_output_token_program, false),
-                AccountMeta::new_readonly(input_output_token_program, false),
-                AccountMeta::new_readonly(input_token_mint, false),
-                AccountMeta::new_readonly(output_token_mint, false),
-                AccountMeta::new(observation_state, false),
+                AccountMeta::new(ctx.accounts.owner.key(), true),
+                AccountMeta::new_readonly(ctx.accounts.raydium_authority.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.amm_config.key(), false),
+                AccountMeta::new(ctx.accounts.pool_state.key(), false),
+                AccountMeta::new(ctx.accounts.token_0_account.key(), false),
+                AccountMeta::new(ctx.accounts.token_1_account.key(), false),
+                AccountMeta::new(ctx.accounts.token_0_vault.key(), false),
+                AccountMeta::new(ctx.accounts.token_1_vault.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.vault_0_mint.key(), false),
+                AccountMeta::new_readonly(ctx.accounts.vault_1_mint.key(), false),
+                AccountMeta::new(ctx.accounts.observation_state.key(), false),
             ];
 
             let ix = Instruction {

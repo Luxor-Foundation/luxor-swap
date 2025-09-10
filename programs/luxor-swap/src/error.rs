@@ -100,4 +100,7 @@ pub enum ErrorCode {
 
     #[msg("No buyback has been requested")]
     NoBuybackRequested,
+
+    #[msg("Invalid stake account data")]
+    InvalidStakeAccountData,
 }

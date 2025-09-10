@@ -176,8 +176,9 @@ pub struct Purchase<'info> {
 /// - `require_*` guards for invariants, slippage (`max_sol_amount`), and pool addresses.
 pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u64) -> Result<()> {
     require_gt!(lxr_to_purchase, 0);
-    let stake_pda = &ctx.accounts.stake_pda;
-    let stake_pda_state = StakeStateV2::try_from_slice(&stake_pda.data.borrow()[..])?;
+
+    let stake_pda_ai = ctx.accounts.stake_pda.to_account_info();
+    let stake_pda_state = load_stake_state(&stake_pda_ai)?;
     let clock = &*ctx.accounts.clock;               
     let stake_history = &*ctx.accounts.stake_history;
     let mut to_delegate = true;
@@ -381,4 +382,17 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     });
 
     Ok(())
+}
+
+pub fn load_stake_state(ai: &AccountInfo) -> Result<StakeStateV2> {
+
+    // 2) Must exist (lamports > 0) and have data
+    let data = ai.try_borrow_data().map_err(|_| error!(ErrorCode::InvalidStakeAccountData))?;
+    require!(!data.is_empty(), ErrorCode::InvalidStakeAccountData);
+
+    // 3) Deserialize with bincode
+    let state: StakeStateV2 = bincode::deserialize(&data)
+        .map_err(|_| error!(ErrorCode::InvalidStakeAccountData))?;
+
+    Ok(state)
 }

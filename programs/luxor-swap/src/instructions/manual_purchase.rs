@@ -1,3 +1,4 @@
+use crate::instructions::load_stake_state;
 use crate::{states::*, PRECISION};
 use anchor_lang::solana_program::stake::state::StakeStateV2;
 use anchor_lang::{prelude::*, solana_program};
@@ -135,8 +136,8 @@ pub fn manual_purchase(ctx: Context<ManualPurchase>, lxr_purchased: u64, sol_spe
     let stake_info = &mut ctx.accounts.stake_info;
     let user_stake_info = &mut ctx.accounts.user_stake_info;
 
-    let stake_pda = &ctx.accounts.stake_pda;
-    let stake_pda_state = StakeStateV2::try_from_slice(&stake_pda.data.borrow()[..])?;
+    let stake_pda_ai = ctx.accounts.stake_pda.to_account_info();
+    let stake_pda_state = load_stake_state(&stake_pda_ai)?;
     let clock = &*ctx.accounts.clock;               
     let stake_history = &*ctx.accounts.stake_history;
     let mut to_delegate = true;
