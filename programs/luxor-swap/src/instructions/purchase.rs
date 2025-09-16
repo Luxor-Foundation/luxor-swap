@@ -264,6 +264,8 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     let user_stake_info = &mut ctx.accounts.user_stake_info;
     let global_config = &ctx.accounts.global_config;
 
+    msg!("total_sol_needed (raydium output): {}", total_sol_needed);
+
     // --- Bonus / post-bonus pricing adjustments ---
     if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
        total_sol_needed = total_sol_needed
@@ -275,9 +277,11 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     } else {
         // After bonus phase, scale price against inventory depth.
         total_sol_needed = u128::from(total_sol_needed)
-        .checked_mul(ctx.accounts.luxor_vault.amount as u128).unwrap()
-        .checked_div(global_config.initial_lxr_allocation_vault as u128).unwrap() as u64;
+        .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
+        .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap() as u64;
     }
+    
+    msg!("total_sol_needed (post-bonus/scaling): {}", total_sol_needed);
 
     // Slippage/limit check from the payer.
     require_gte!(max_sol_amount, total_sol_needed);

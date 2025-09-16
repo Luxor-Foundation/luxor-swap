@@ -96,6 +96,9 @@ pub fn update_config(ctx: Context<UpdateConfig>, param: u8, value: u64) -> Resul
         5 => {
             global_config.redeem_enabled = value != 0;
         }
+        6 => {
+            global_config.max_stake_count_to_get_bonus = value;
+        }
         // Invalid parameter selector
         _ => return Err(error!(ErrorCode::InvalidParam)),
     }

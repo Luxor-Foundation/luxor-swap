@@ -267,16 +267,16 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 &ctx.accounts.vote_account.key()
             );
 
-            let delegate_account_infos: [&AccountInfo; 6] =[
-                &stake_pda_ai,
-                &vote_ai,
-                &clock_ai,
-                &stake_history_ai,
-                &stake_config_ai,
-                &authority_ai,
-            ];
+            let delegate_account_infos = Box::new(vec![
+                stake_pda_ai,
+                vote_ai,
+                clock_ai.clone(),
+                stake_history_ai.clone(),
+                stake_config_ai.clone(),
+                authority_ai.clone(),
+            ]);
 
-            invoke_signed(&ix, unsafe { core::mem::transmute(delegate_account_infos.as_slice()) }, &[seeds])?;
+            invoke_signed(&ix, &*delegate_account_infos, &[seeds])?;
         }
 
         if *stake_split_pda.owner == ctx.accounts.stake_program.key() {
@@ -297,16 +297,17 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 None,       // custodian optional
             );
 
-            let withdraw_account_infos: [&AccountInfo; 5] =[
-                &stake_account,
-                &recipient_ai,
-                &clock_ai,
-                &stake_history_ai,
-                &authority_ai,
-            ];
+            let withdraw_account_infos = Box::new(vec![
+                stake_account,
+                recipient_ai.clone(),
+                clock_ai,
+                stake_history_ai,
+                stake_config_ai,
+                authority_ai,
+            ]);
 
 
-            invoke_signed(&ix, unsafe { core::mem::transmute(withdraw_account_infos.as_slice()) }, &[seeds])?;
+            invoke_signed(&ix, &*withdraw_account_infos, &[seeds])?;
 
             let ix = transfer(
                 &ctx.accounts.owner.key(),
@@ -326,7 +327,6 @@ pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
                 .unwrap()
                 .checked_div(FEE_RATE_DENOMINATOR_VALUE as u128)
                 .unwrap() as u64;
-            require!(fee_treasury > 0, ErrorCode::ZeroTradingTokens);
 
             // --- Exact-input amount sent to the pool after fee ---
             let actual_amount_in = sol_withdrawan

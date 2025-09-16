@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("71VPewCpqfXVVjJQogj86LN1mSvLXFkZc1YcQPe5Y4y5");
+declare_id!("LuxnEkqEwYi9VGxGd5oyc7ddHHYCEhnq42ZrGeYfzgg");
 
 pub mod raydium_cpmm {
     use anchor_lang::prelude::declare_id;
@@ -19,7 +19,7 @@ pub mod luxor_pool_state {
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
-    declare_id!("B8VmoTgg2arRfw7qQVTYK9GohYeyMEjaCSW6jVPVBUgV");
+    declare_id!("4jskLsQhCZah4GMrcdn9t1uBEZ7HizS4sUMahyh2AWvy");
 }
 
 pub mod luxor_mint {

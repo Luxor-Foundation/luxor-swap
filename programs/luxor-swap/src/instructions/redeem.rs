@@ -114,13 +114,11 @@ pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
     let reward_per_token_lxr_pending = stake_info.reward_per_token_lxr_stored
         .checked_sub(user_stake_info.lxr_reward_per_token_completed)
         .unwrap();
-    require!(reward_per_token_lxr_pending > 0, ErrorCode::NoRewardsToClaim);
 
     // --- 2) Base rewards = stake * delta_index, scaled down by PRECISION^2 ---
     let mut lxr_rewards_to_claim = (user_stake_info.total_staked_sol as u128)
         .checked_mul(reward_per_token_lxr_pending).unwrap()
         .checked_div(PRECISION).unwrap() as u64;
-    require!(lxr_rewards_to_claim > 0, ErrorCode::NoRewardsToClaim);
 
     // --- 3) Forfeiture if current holdings < base holdings ---
     let mut forfieted_lxr = 0;
@@ -138,6 +136,8 @@ pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
 
     // --- 4) Include any pending carryover ---
     lxr_rewards_to_claim = lxr_rewards_to_claim.checked_add(user_stake_info.lxr_rewards_pending).unwrap();
+
+    require!(lxr_rewards_to_claim > 0, ErrorCode::NoRewardsToClaim);
 
     // --- 5) Update user & global tallies and indices ---
     // User updates
