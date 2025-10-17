@@ -99,6 +99,9 @@ pub fn update_config(ctx: Context<UpdateConfig>, param: u8, value: u64) -> Resul
         6 => {
             global_config.max_stake_count_to_get_bonus = value;
         }
+        7 => {
+            global_config.initial_lxr_allocation_vault = value;
+        }
         // Invalid parameter selector
         _ => return Err(error!(ErrorCode::InvalidParam)),
     }

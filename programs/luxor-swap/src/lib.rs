@@ -19,7 +19,7 @@ pub mod luxor_pool_state {
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;
-    declare_id!("4jskLsQhCZah4GMrcdn9t1uBEZ7HizS4sUMahyh2AWvy");
+    declare_id!("B8VmoTgg2arRfw7qQVTYK9GohYeyMEjaCSW6jVPVBUgV");
 }
 
 pub mod luxor_mint {

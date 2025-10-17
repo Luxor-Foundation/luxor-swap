@@ -205,7 +205,25 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     require_keys_eq!(pool_state.token_1_vault, ctx.accounts.token_1_vault.key());
 
     // Exact tokens user wants to receive (post any transfer fee logic, if applicable).
-    let amount_out_with_transfer_fee = lxr_to_purchase;
+    let mut amount_out_with_transfer_fee = lxr_to_purchase;
+
+    let stake_info = &mut ctx.accounts.stake_info;
+    let user_stake_info = &mut ctx.accounts.user_stake_info;
+    let global_config = &ctx.accounts.global_config;
+
+
+    // new added code   
+    if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
+       amount_out_with_transfer_fee = amount_out_with_transfer_fee.checked_sub(
+        amount_out_with_transfer_fee.checked_mul(global_config.bonus_rate).unwrap()
+        .checked_div(FEE_RATE_DENOMINATOR_VALUE).unwrap()
+       ).unwrap();
+    } else {
+        amount_out_with_transfer_fee = u128::from(amount_out_with_transfer_fee)
+        .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
+        .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap() as u64; 
+    }
+    msg!("amount_out_with_transfer_fee (post-bonus/scaling): {}", amount_out_with_transfer_fee);
 
     // Compute swap parameters from pool state/current vault balances.
     let SwapParams {
@@ -258,28 +276,26 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
     require_gte!(constant_after, constant_before);
 
     // Raw SOL needed from pricing path.
-    let mut total_sol_needed = u64::try_from(result.input_amount).unwrap();
+    let total_sol_needed = u64::try_from(result.input_amount).unwrap();
     
-    let stake_info = &mut ctx.accounts.stake_info;
-    let user_stake_info = &mut ctx.accounts.user_stake_info;
-    let global_config = &ctx.accounts.global_config;
+    
 
     msg!("total_sol_needed (raydium output): {}", total_sol_needed);
 
     // --- Bonus / post-bonus pricing adjustments ---
-    if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
-       total_sol_needed = total_sol_needed
-        .checked_sub(
-            total_sol_needed
-        .checked_mul(global_config.bonus_rate).unwrap()
-        .checked_div(FEE_RATE_DENOMINATOR_VALUE).unwrap()
-       ).unwrap();
-    } else {
-        // After bonus phase, scale price against inventory depth.
-        total_sol_needed = u128::from(total_sol_needed)
-        .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
-        .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap() as u64;
-    }
+    // if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
+    //    total_sol_needed = total_sol_needed
+    //     .checked_sub(
+    //         total_sol_needed
+    //     .checked_mul(global_config.bonus_rate).unwrap()
+    //     .checked_div(FEE_RATE_DENOMINATOR_VALUE).unwrap()
+    //    ).unwrap();
+    // } else {
+    //     // After bonus phase, scale price against inventory depth.
+    //     total_sol_needed = u128::from(total_sol_needed)
+    //     .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
+    //     .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap() as u64; 
+    // }
     
     msg!("total_sol_needed (post-bonus/scaling): {}", total_sol_needed);
 
