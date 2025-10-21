@@ -5,7 +5,7 @@ solana_security_txt::security_txt! {
     name: "luxor-swap",
     project_url: "https://stake.lxr-network.com/",
     contacts: "email:ulbrichtdominik565@gmail.com",
-    policy: "https://immunefi.com/bounty/raydium",
+    policy: "https://github.com/Luxor-Foundation/luxor-swap/blob/main/SECURITY.md",
     source_code: "https://github.com/Luxor-Foundation/luxor-swap",
     preferred_languages: "en",
 }
