@@ -1,5 +1,15 @@
 use anchor_lang::prelude::*;
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "luxor-swap",
+    project_url: "https://stake.lxr-network.com/",
+    contacts: "email:ulbrichtdominik565@gmail.com",
+    policy: "https://immunefi.com/bounty/raydium",
+    source_code: "https://github.com/Luxor-Foundation/luxor-swap",
+    preferred_languages: "en",
+}
+
 declare_id!("LuxnEkqEwYi9VGxGd5oyc7ddHHYCEhnq42ZrGeYfzgg");
 
 pub mod raydium_cpmm {
@@ -42,6 +52,7 @@ pub mod states;
 pub mod utils;
 
 use instructions::*;
+use solana_security_txt::security_txt;
 
 #[program]
 pub mod luxor_swap {
