@@ -103,4 +103,17 @@ pub enum ErrorCode {
 
     #[msg("Invalid stake account data")]
     InvalidStakeAccountData,
+
+    // --- Added for the buyback fix (3-step split/deactivate/execute flow) ---
+    // The split stake account exists but is owned by neither the System program
+    // (Step 1, not yet created) nor the Stake program (Steps 2/3) — an
+    // unexpected state that should never occur in the normal flow.
+    #[msg("Split stake account is in an unexpected state")]
+    InvalidSplitState,
+
+    // Returned when Step 3 (withdraw + swap) is attempted before the split stake
+    // has finished its ~1-epoch deactivation cooldown. The caller must wait one
+    // more epoch and retry.
+    #[msg("Stake cooldown is still in progress; try again next epoch")]
+    CooldownInProgress,
 }
