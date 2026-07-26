@@ -39,15 +39,12 @@ pub mod luxor_mint {
 
 /// Dedicated low-privilege key for the off-chain keeper that runs
 /// `stake_deposits` automatically each epoch. It is authorized ONLY for that
-/// instruction (see `StakeDeposits`) and has no other power in the program.
-///
-/// TODO(before production build): replace this placeholder with the real keeper
-/// pubkey. It currently points at the System Program, which nobody can sign as,
-/// so the automated keeper path is effectively DISABLED until it is set — the
-/// admin can still trigger `stake_deposits` manually in the meantime.
+/// instruction (see `StakeDeposits`) and has no other power in the program —
+/// it cannot move funds, change config, or run any other instruction. The
+/// matching secret lives only in the keeper's scheduler (e.g. a Vercel secret).
 pub mod keeper {
     use anchor_lang::prelude::declare_id;
-    declare_id!("11111111111111111111111111111111");
+    declare_id!("HrSVp4GMFjUoYbNszh8UzHTo9ca8U4A4m3utVeg3WoRh");
 }
 
 pub const AUTH_SEED: &str = "stake_and_treasury_auth";
