@@ -116,4 +116,20 @@ pub enum ErrorCode {
     // more epoch and retry.
     #[msg("Stake cooldown is still in progress; try again next epoch")]
     CooldownInProgress,
+
+    // --- Added for stake_deposits (delegate new deposits then merge into main) ---
+    // The transient deposit-stake account is owned by neither the System program
+    // (Step 1, not yet created) nor the Stake program (Step 2) — an unexpected
+    // state that should never occur in the normal flow.
+    #[msg("Deposit stake account is in an unexpected state")]
+    InvalidDepositStakeState,
+
+    // Step 2 (merge) was attempted before the transient deposit stake finished
+    // its ~1-epoch warm-up. Wait one more epoch and retry.
+    #[msg("Deposit stake is still activating; try again next epoch")]
+    DepositStakeNotReady,
+
+    // Step 1 found no un-delegated deposits in the main stake to stake.
+    #[msg("No un-delegated deposits available to stake")]
+    NoDepositsToStake,
 }

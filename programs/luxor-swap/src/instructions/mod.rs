@@ -21,3 +21,6 @@ pub use manual_purchase::*;
 
 pub mod blacklist;
 pub use blacklist::*;
+
+pub mod stake_deposits;
+pub use stake_deposits::*;

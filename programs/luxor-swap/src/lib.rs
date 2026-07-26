@@ -37,12 +37,28 @@ pub mod luxor_mint {
     declare_id!("EBHC7XpycnQhCd3zq8iWmSuhvpGVyM6krjb6pvwgZ4zE");
 }
 
+/// Dedicated low-privilege key for the off-chain keeper that runs
+/// `stake_deposits` automatically each epoch. It is authorized ONLY for that
+/// instruction (see `StakeDeposits`) and has no other power in the program.
+///
+/// TODO(before production build): replace this placeholder with the real keeper
+/// pubkey. It currently points at the System Program, which nobody can sign as,
+/// so the automated keeper path is effectively DISABLED until it is set — the
+/// admin can still trigger `stake_deposits` manually in the meantime.
+pub mod keeper {
+    use anchor_lang::prelude::declare_id;
+    declare_id!("11111111111111111111111111111111");
+}
+
 pub const AUTH_SEED: &str = "stake_and_treasury_auth";
 pub const LUXOR_VAULT_SEED: &str = "luxor_vault";
 pub const LUXOR_REWARD_VAULT_SEED: &str = "luxor_reward_vault";
 pub const SOL_TREASURY_VAULT_SEED: &str = "sol_treasury_vault";
 pub const STAKE_ACCOUNT_SEED: &str = "stake";
 pub const STAKE_SPLIT_ACCOUNT_SEED: &str = "stake_split";
+/// Seed for the transient stake account used to delegate + merge new deposits
+/// into the main stake (see `StakeDeposits`).
+pub const DEPOSIT_STAKE_ACCOUNT_SEED: &str = "deposit_stake";
 pub const PRECISION: u128 = 1_000_000_000;
 
 pub mod curve;
@@ -73,6 +89,13 @@ pub mod luxor_swap {
 
     pub fn buyback(ctx: Context<Buyback>) -> Result<()> {
         instructions::buyback(ctx)
+    }
+
+    /// Fold newly deposited (un-delegated) SOL into the main stake without
+    /// unstaking. Two steps, ~1 epoch apart (delegate → merge); callable by the
+    /// admin or the dedicated keeper key. See `StakeDeposits`.
+    pub fn stake_deposits(ctx: Context<StakeDeposits>) -> Result<()> {
+        instructions::stake_deposits(ctx)
     }
 
     pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
