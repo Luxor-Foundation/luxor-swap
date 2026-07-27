@@ -12,3 +12,6 @@ pub use stake_info::*;
 
 pub mod user_stake_info;
 pub use user_stake_info::*;
+
+pub mod keeper_config;
+pub use keeper_config::*;

@@ -95,6 +95,12 @@ pub mod luxor_swap {
         instructions::stake_deposits(ctx)
     }
 
+    /// Admin-only: set/rotate the keeper key authorized to run `stake_deposits`.
+    /// Writes a dedicated `keeper_config` account; no upgrade needed to rotate.
+    pub fn set_keeper(ctx: Context<SetKeeper>, new_keeper: Pubkey) -> Result<()> {
+        instructions::set_keeper(ctx, new_keeper)
+    }
+
     pub fn redeem(ctx: Context<Redeem>) -> Result<()> {
         instructions::redeem(ctx)
     }

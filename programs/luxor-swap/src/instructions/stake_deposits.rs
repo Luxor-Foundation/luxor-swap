@@ -48,17 +48,10 @@ use std::mem::size_of;
 /// automatically each epoch. The keeper key can do nothing else in the program.
 #[derive(Accounts)]
 pub struct StakeDeposits<'info> {
-    /// Admin signer, hardcoded program admin, OR the dedicated keeper key.
-    /// The keeper key is authorized ONLY for this instruction — it has no other
-    /// power in the program (see `crate::keeper`).
-    #[account(
-        mut,
-        constraint = (
-            owner.key() == global_config.admin
-            || owner.key() == crate::admin::id()
-            || owner.key() == crate::keeper::id()
-        ) @ ErrorCode::InvalidOwner
-    )]
+    /// Admin signer, hardcoded program admin, OR the authorized keeper key.
+    /// The authorization is checked in the handler (not here) because the keeper
+    /// may be overridden by the admin via `set_keeper` — see `keeper_config`.
+    #[account(mut)]
     pub owner: Signer<'info>,
 
     /// Global protocol configuration.
@@ -115,6 +108,19 @@ pub struct StakeDeposits<'info> {
     )]
     pub authority: UncheckedAccount<'info>,
 
+    /// Optional keeper override, set by the admin via `set_keeper`. If it exists,
+    /// its stored key is the authorized keeper; if it was never set, the handler
+    /// falls back to the hardcoded `crate::keeper` default.
+    ///
+    /// CHECK: read-only, parsed manually in the handler; may be System-owned
+    /// (uninitialized) if `set_keeper` was never called. Address is pinned by
+    /// the PDA seeds, so a wrong account cannot be substituted.
+    #[account(
+        seeds = [KEEPER_CONFIG_SEED.as_bytes()],
+        bump
+    )]
+    pub keeper_config: UncheckedAccount<'info>,
+
     /// CHECK: Stake program ID (CPI target).
     #[account(address = stake::program::ID)]
     pub stake_program: UncheckedAccount<'info>,
@@ -140,6 +146,34 @@ pub struct StakeDeposits<'info> {
 /// Fold un-delegated deposits into the main stake. One step per call; see the
 /// `StakeDeposits` doc comment for the full rationale.
 pub fn stake_deposits(ctx: Context<StakeDeposits>) -> Result<()> {
+    // --- Authorize the caller BEFORE any state change ---
+    // Allowed: the config admin, the hardcoded program admin, or the current
+    // keeper. The keeper is whatever the admin set via `set_keeper` (stored in
+    // `keeper_config`); if that account was never set, fall back to the
+    // hardcoded `crate::keeper` default. Parsed manually so a missing
+    // keeper_config account is not an error.
+    let authorized_keeper = {
+        let kc = &ctx.accounts.keeper_config;
+        let mut key = crate::keeper::id();
+        if kc.owner == &crate::ID {
+            let data = kc.try_borrow_data()?;
+            // 8 discriminator + 32 keeper pubkey
+            if data.len() >= 40 {
+                let mut buf = [0u8; 32];
+                buf.copy_from_slice(&data[8..40]);
+                key = Pubkey::new_from_array(buf);
+            }
+        }
+        key
+    };
+    let signer = ctx.accounts.owner.key();
+    require!(
+        signer == ctx.accounts.global_config.admin
+            || signer == crate::admin::id()
+            || signer == authorized_keeper,
+        ErrorCode::InvalidOwner
+    );
+
     let stake_info = &mut ctx.accounts.stake_info;
     let block_timestamp = solana_program::clock::Clock::get()?.unix_timestamp as u64;
     let space = size_of::<StakeStateV2>();

@@ -24,3 +24,6 @@ pub use blacklist::*;
 
 pub mod stake_deposits;
 pub use stake_deposits::*;
+
+pub mod set_keeper;
+pub use set_keeper::*;
