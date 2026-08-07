@@ -6,9 +6,15 @@ solana_version = "2.1.20"
 seeds = false
 skip-lint = false
 
+# Never put an API key here - this file is committed, and git history is
+# permanent and public. Override per-machine instead:
+#   export ANCHOR_PROVIDER_URL="https://mainnet.helius-rpc.com/?api-key=..."
+#   export ANCHOR_WALLET="$HOME/.config/solana/id.json"
+# Both take precedence over the values below. `anchor build` needs neither;
+# only deploy/test read them.
 [provider]
-cluster = "https://mainnet.helius-rpc.com/?api-key=7293b92a-03dd-435c-b594-e754264f781a"
-wallet = "/Users/visheshsachdev/.config/solana/id.json"
+cluster = "mainnet"
+wallet = "~/.config/solana/id.json"
 
 [workspace]
 members = ["programs/luxor-swap"]
