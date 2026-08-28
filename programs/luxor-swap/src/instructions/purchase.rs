@@ -214,14 +214,25 @@ pub fn purchase(ctx: Context<Purchase>, lxr_to_purchase: u64, max_sol_amount: u6
 
     // new added code   
     if user_stake_info.owner == Pubkey::default() && stake_info.total_stake_count + 1  <= global_config.max_stake_count_to_get_bonus {
-       amount_out_with_transfer_fee = amount_out_with_transfer_fee.checked_sub(
-        amount_out_with_transfer_fee.checked_mul(global_config.bonus_rate).unwrap()
-        .checked_div(FEE_RATE_DENOMINATOR_VALUE).unwrap()
-       ).unwrap();
+       // Compute the bonus in u128. In u64 this multiply overflows once the
+       // purchase exceeds u64::MAX / bonus_rate - about 184,467 LXR at the
+       // configured rate of 100_000 - so every purchase above roughly 1.63 SOL
+       // panicked here. Only first-time buyers take this branch, which is why
+       // it looked like "new users cannot buy more than ~1.6 SOL". The else
+       // branch below already used u128 for exactly this reason.
+       let bonus = u128::from(amount_out_with_transfer_fee)
+        .checked_mul(u128::from(global_config.bonus_rate)).unwrap()
+        .checked_div(u128::from(FEE_RATE_DENOMINATOR_VALUE)).unwrap();
+       amount_out_with_transfer_fee = amount_out_with_transfer_fee
+        .checked_sub(u64::try_from(bonus).unwrap()).unwrap();
     } else {
-        amount_out_with_transfer_fee = u128::from(amount_out_with_transfer_fee)
-        .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
-        .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap() as u64; 
+        // try_from, not `as u64`: the cast wraps silently on overflow, which
+        // would mis-price the trade instead of failing it.
+        amount_out_with_transfer_fee = u64::try_from(
+            u128::from(amount_out_with_transfer_fee)
+            .checked_mul(global_config.initial_lxr_allocation_vault as u128).unwrap()
+            .checked_div(ctx.accounts.luxor_vault.amount as u128).unwrap()
+        ).unwrap();
     }
     msg!("amount_out_with_transfer_fee (post-bonus/scaling): {}", amount_out_with_transfer_fee);
 
